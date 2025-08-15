@@ -1,0 +1,8 @@
+**/*.key
+**/*.pem
+**/*.crt
+**/*.p12
+**/*.csr
+**/*.srl
+**/feathershield-adminsdk.json
+**/__pycache__
