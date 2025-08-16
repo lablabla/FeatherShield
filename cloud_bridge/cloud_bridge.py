@@ -2,6 +2,7 @@
 import paho.mqtt.client as mqtt
 import json
 import base64
+import ssl
 import os
 
 from backends.firebase.firebase_backend import FirebaseBackend
@@ -10,14 +11,22 @@ from backends.firebase.firebase_backend import FirebaseBackend
 
 backend_service = FirebaseBackend()
 
-# MQTT Settings
-MQTT_BROKER = "localhost"
-MQTT_PORT = 1883
-MQTT_TOPIC = "nestbox/+/alert"
+# Get MQTT settings from environment variables
+MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
+MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
+MQTT_TOPIC = os.getenv("MQTT_TOPIC", "nestbox/+/alert")
+
+# Get certificate paths from environment variables
+CA_CERT_PATH = os.getenv("CA_CERT_PATH")
+CLIENT_CERT_PATH = os.getenv("CLIENT_CERT_PATH")
+CLIENT_KEY_PATH = os.getenv("CLIENT_KEY_PATH")
 
 def on_connect(client, userdata, flags, rc, properties):
-    print(f"Connected to MQTT Broker with result code {rc}")
-    client.subscribe(MQTT_TOPIC)
+    if rc == 0:
+        print("Connected to MQTT Broker securely!")
+        client.subscribe(MQTT_TOPIC)
+    else:
+        print(f"Failed to connect, return code {rc}")
 
 def on_message(client, userdata, msg):
     try:
@@ -39,9 +48,25 @@ def on_message(client, userdata, msg):
 
     except Exception as e:
         print(f"Error processing message: {e}")
+        print(f"Got message: {msg.payload.decode('utf-8')}")
+    
+def on_disconnect(client, userdata, rc):
+    if rc != 0:
+        print(f"Unexpected disconnection. Attempting to reconnect...")
 
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, "mqtt_cloud_bridge")
+
+client.tls_set(
+    ca_certs=CA_CERT_PATH,
+    certfile=CLIENT_CERT_PATH,
+    keyfile=CLIENT_KEY_PATH,
+    tls_version=ssl.PROTOCOL_TLSv1_2,
+    cert_reqs=ssl.CERT_REQUIRED
+)
+client.reconnect_delay_set(min_delay=1, max_delay=120)
+
 client.on_connect = on_connect
+client.on_disconnect = on_disconnect
 client.on_message = on_message
 
 client.connect(MQTT_BROKER, MQTT_PORT, 60)
