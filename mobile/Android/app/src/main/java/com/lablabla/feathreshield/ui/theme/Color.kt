@@ -1,4 +1,4 @@
-package com.lablabla.feathreshield.ui.theme
+package com.lablabla.feathershield.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

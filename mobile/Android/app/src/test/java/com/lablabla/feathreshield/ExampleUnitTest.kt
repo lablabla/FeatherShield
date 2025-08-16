@@ -1,4 +1,4 @@
-package com.lablabla.feathreshield
+package com.lablabla.feathershield
 
 import org.junit.Test
 

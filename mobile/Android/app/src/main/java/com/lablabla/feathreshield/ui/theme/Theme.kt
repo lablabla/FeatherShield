@@ -1,4 +1,4 @@
-package com.lablabla.feathreshield.ui.theme
+package com.lablabla.feathershield.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -34,7 +34,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun FeathreShieldTheme(
+fun FeatherShieldTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,

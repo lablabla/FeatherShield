@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Feathre Shield"
+rootProject.name = "Feather Shield"
 include(":app")

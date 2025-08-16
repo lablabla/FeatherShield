@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.lablabla.feathreshield"
+    namespace = "com.lablabla.feathershield"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.lablabla.feathreshield"
+        applicationId = "com.lablabla.feathershield"
         minSdk = 29
         targetSdk = 36
         versionCode = 1
