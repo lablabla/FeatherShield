@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.devtools.ksp")
+    alias(libs.plugins.kotlin.hilt)
     id("com.google.gms.google-services")
 }
 
@@ -40,6 +42,10 @@ android {
     }
 }
 
+hilt {
+//    enableAggregatingTask = true
+}
+
 dependencies {
 
     implementation(libs.androidx.core.ktx)
@@ -62,4 +68,16 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-storage")
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+
+    // Hilt dependencies
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.android.compiler)
+
+    // Hilt integration with Jetpack Compose
+    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+
+    // For Hilt with ViewModels
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
 }

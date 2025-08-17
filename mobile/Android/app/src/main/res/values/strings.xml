@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Feather Shield</string>
+    <string name="default_web_client_id" translatable="false">1011963239837-0dlcuu5lerk2co1ln7e3cpkou70ckeqh.apps.googleusercontent.com</string>
 </resources>
