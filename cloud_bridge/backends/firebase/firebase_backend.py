@@ -3,7 +3,10 @@ import firebase_admin
 from firebase_admin import credentials, firestore, storage, messaging
 import uuid
 import os
-
+from threading import Thread
+import time
+from google.cloud.firestore_v1.watch import ChangeType
+import requests
 from .backend_interface import BackendService
 
 class FirebaseBackend(BackendService):
@@ -14,10 +17,16 @@ class FirebaseBackend(BackendService):
         storage_bucket = os.getenv("FIREBASE_STORAGE_BUCKET", None)
         if not storage_bucket:
             raise ValueError("FIREBASE_STORAGE_BUCKET environment variable must be set.")
+        
+        self.mtxmedia_url = os.getenv("MTXMEDIA_URL", None)
+        if not self.mtxmedia_url:
+            raise ValueError("MTXMEDIA_URL environment variable must be set.")
         cred = credentials.Certificate(service_account_path)
         firebase_admin.initialize_app(cred, {'storageBucket': storage_bucket})
         self.db = firestore.client()
         self.bucket = storage.bucket()
+        self.devices = []
+        self.listen_for_commands()
 
     def save_alert(self, device_id: str, image_data: bytes, battery_level: float):
         # 1. Upload the image to Firebase Storage
@@ -64,8 +73,59 @@ class FirebaseBackend(BackendService):
         except Exception as e:
             print(f"Error sending message: {e}")
 
-    def listen_for_commands(self, device_id: str, callback):
-        # We'll implement this part later, but the concept is to
-        # use Firestore's on_snapshot() to listen for changes
-        # in a specific document that holds the command state.
-        pass
+    def listen_for_commands(self):
+        # Get all device IDs from the Firestore collection
+        devices_ref = self.db.collection("devices")
+        devices_stream = devices_ref.stream()
+        self.devices = [doc.id for doc in devices_stream]
+        print(f"Listening for commands for devices: {self.devices}")
+        # Create a thread to run the listener to avoid blocking the main thread
+        listener_thread = Thread(target=self._run_listener)
+        listener_thread.daemon = True
+        listener_thread.start()
+
+    def _run_listener(self):
+        # A simple, single-document listener
+        def on_snapshot(doc_snapshot, changes, read_time):
+            for change in changes:
+                if change.type == ChangeType.MODIFIED:
+                    command_data = change.document.to_dict()
+                    if command_data and 'command' in command_data:
+                        command = command_data['command']
+                        if command == "start_stream":
+                            self.start_stream(device_id)
+                        elif command == "stop_stream":
+                            self.stop_stream(device_id)
+                        print(f"Received command for {device_id}: {command}")
+
+        
+        for device_id in self.devices:
+            doc_ref = self.db.collection("commands").document(device_id)
+            doc_ref.on_snapshot(on_snapshot)
+        while True:
+            time.sleep(1)
+
+    def start_stream(self, device_id: str):
+        print(f"Starting stream for device {device_id}.")
+        path = f"{self.mtxmedia_url}/v3/config/paths/add/{device_id}"
+        data = { "name": device_id }
+        try:
+            response = requests.post(path, json=data)
+            if response.status_code == 200:
+                print(f"Stream started successfully for device {device_id}.")
+            else:
+                print(f"Failed to start stream for device {device_id}. Status code: {response.status_code}, Response: {response.text}")
+        except requests.RequestException as e:
+            print(f"Error starting stream for device {device_id}: {e}")
+
+    def stop_stream(self, device_id: str):
+        print(f"Stopping stream for device {device_id}.")
+        path = f"{self.mtxmedia_url}/v3/config/paths/delete/{device_id}"
+        try:
+            response = requests.delete(path)
+            if response.status_code == 200:
+                print(f"Stream stopped successfully for device {device_id}.")
+            else:
+                print(f"Failed to stop stream for device {device_id}. Status code: {response.status_code}, Response: {response.text}")
+        except requests.RequestException as e:
+            print(f"Error stopping stream for device {device_id}: {e}")
