@@ -46,6 +46,8 @@ def on_message(client, userdata, msg):
         image_url = backend_service.save_alert(device_id, image_data, battery_level)
         print(f"Alert from {device_id} processed. Image URL: {image_url}")
 
+        backend_service.send_fcm_notification(device_id, image_url)
+
     except Exception as e:
         print(f"Error processing message: {e}")
         print(f"Got message: {msg.payload.decode('utf-8')}")

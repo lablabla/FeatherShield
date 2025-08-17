@@ -1,6 +1,6 @@
 
 import firebase_admin
-from firebase_admin import credentials, firestore, storage
+from firebase_admin import credentials, firestore, storage, messaging
 import uuid
 import os
 
@@ -30,6 +30,31 @@ class FirebaseBackend(BackendService):
             "timestamp": firestore.SERVER_TIMESTAMP
         })
         return image_url
+    
+    def send_fcm_notification(self, device_id: str, image_url: str):
+        """Sends a push notification to the specified device."""
+        # The topic is a unique identifier for the device, which the Android app will subscribe to.
+        topic = f'alerts_{device_id}'
+        
+        # Create the message payload
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title="Myna Bird Detected!",
+                body=f"A myna bird with eggs was detected in nest box {device_id}."
+            ),
+            data={
+                "image_url": image_url,
+                "device_id": device_id
+            },
+            topic=topic
+        )
+        
+        # Send the message
+        try:
+            response = messaging.send(message)
+            print(f"Successfully sent message to topic {topic}. Response: {response}")
+        except Exception as e:
+            print(f"Error sending message: {e}")
 
     def listen_for_commands(self, device_id: str, callback):
         # We'll implement this part later, but the concept is to
