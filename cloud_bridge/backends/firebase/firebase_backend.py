@@ -8,8 +8,12 @@ from .backend_interface import BackendService
 
 class FirebaseBackend(BackendService):
     def __init__(self):
-        service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", f"{os.path.dirname(os.path.abspath(__file__))}/feathershield-adminsdk.json")
-        storage_bucket = os.getenv("FIREBASE_STORAGE_BUCKET", "feathershield-e401e.firebasestorage.app")
+        service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", None)
+        if not service_account_path:
+            raise ValueError("FIREBASE_SERVICE_ACCOUNT_PATH environment variable must be set.")
+        storage_bucket = os.getenv("FIREBASE_STORAGE_BUCKET", None)
+        if not storage_bucket:
+            raise ValueError("FIREBASE_STORAGE_BUCKET environment variable must be set.")
         cred = credentials.Certificate(service_account_path)
         firebase_admin.initialize_app(cred, {'storageBucket': storage_bucket})
         self.db = firestore.client()
@@ -20,15 +24,19 @@ class FirebaseBackend(BackendService):
         filename = f"{device_id}/{uuid.uuid4()}.jpg"
         blob = self.bucket.blob(filename)
         blob.upload_from_string(image_data, content_type='image/jpeg')
-        image_url = blob.public_url
+        image_url = filename
 
-        # 2. Store the alert data in Firestore
-        self.db.collection("alerts").add({
-            "deviceId": device_id,
-            "imageUrl": image_url,
+        data = {
+            "id": device_id,
             "batteryLevel": battery_level,
-            "timestamp": firestore.SERVER_TIMESTAMP
-        })
+            "lastImageUrl": image_url,
+            "lastUpdated": firestore.SERVER_TIMESTAMP,
+            "name": f"Nest Box {device_id}"
+        }
+        # 2. Store the alert data in Firestore
+        self.db.collection("devices").document(device_id).set(
+            data
+        )
         return image_url
     
     def send_fcm_notification(self, device_id: str, image_url: str):
