@@ -17,7 +17,9 @@ class FirebaseBackend(BackendService):
         storage_bucket = os.getenv("FIREBASE_STORAGE_BUCKET", None)
         if not storage_bucket:
             raise ValueError("FIREBASE_STORAGE_BUCKET environment variable must be set.")
-        
+        self.host_ip = os.getenv("HOST_IP", None)
+        if not self.host_ip:
+            raise ValueError("HOST_IP environment variable must be set.")
         self.mtxmedia_url = os.getenv("MTXMEDIA_URL", None)
         if not self.mtxmedia_url:
             raise ValueError("MTXMEDIA_URL environment variable must be set.")
@@ -39,6 +41,7 @@ class FirebaseBackend(BackendService):
             "id": device_id,
             "batteryLevel": battery_level,
             "lastImageUrl": image_url,
+            "liveStreamUrl": f'rtsp://{self.host_ip}/live/{device_id}', 
             "lastUpdated": firestore.SERVER_TIMESTAMP,
             "name": f"Nest Box {device_id}"
         }
@@ -107,8 +110,8 @@ class FirebaseBackend(BackendService):
 
     def start_stream(self, device_id: str):
         print(f"Starting stream for device {device_id}.")
-        path = f"{self.mtxmedia_url}/v3/config/paths/add/{device_id}"
-        data = { "name": device_id }
+        path = f"{self.mtxmedia_url}/v3/config/paths/add/live/{device_id}"
+        data = { "name": f"live/{device_id}" }
         try:
             response = requests.post(path, json=data)
             if response.status_code == 200:
@@ -120,7 +123,7 @@ class FirebaseBackend(BackendService):
 
     def stop_stream(self, device_id: str):
         print(f"Stopping stream for device {device_id}.")
-        path = f"{self.mtxmedia_url}/v3/config/paths/delete/{device_id}"
+        path = f"{self.mtxmedia_url}/v3/config/paths/delete/live/{device_id}"
         try:
             response = requests.delete(path)
             if response.status_code == 200:

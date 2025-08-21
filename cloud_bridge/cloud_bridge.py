@@ -12,7 +12,7 @@ from backends.firebase.firebase_backend import FirebaseBackend
 backend_service = FirebaseBackend()
 
 # Get MQTT settings from environment variables
-MQTT_BROKER = os.getenv("MQTT_BROKER", "localhost")
+MQTT_BROKER = os.getenv("HOST_IP", "localhost")
 MQTT_PORT = int(os.getenv("MQTT_PORT", "1883"))
 MQTT_TOPIC = os.getenv("MQTT_TOPIC", "nestbox/+/alert")
 
