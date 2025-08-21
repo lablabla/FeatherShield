@@ -8,6 +8,7 @@ data class Device(
     val name: String = "",
     val batteryLevel: Int = 0,
     val lastImageUrl: String = "",
+    val liveStreamUrl: String = "",
     @ServerTimestamp
     val lastUpdated: Date = Date()
 )

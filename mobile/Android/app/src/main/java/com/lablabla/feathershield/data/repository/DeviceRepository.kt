@@ -48,7 +48,8 @@ class DeviceRepository @Inject constructor(
                         name = userDevice.name, // The user-defined name
                         batteryLevel = globalDevice.batteryLevel,
                         lastImageUrl = globalDevice.lastImageUrl,
-                        lastUpdated = globalDevice.lastUpdated
+                        lastUpdated = globalDevice.lastUpdated,
+                        liveStreamUrl = globalDevice.liveStreamUrl
                     )
                 } else null
             }
@@ -100,7 +101,8 @@ class DeviceRepository @Inject constructor(
                     name = userDevice.name,
                     batteryLevel = globalDevice.batteryLevel,
                     lastImageUrl = downloadUrl,
-                    lastUpdated = globalDevice.lastUpdated
+                    lastUpdated = globalDevice.lastUpdated,
+                    liveStreamUrl = globalDevice.liveStreamUrl
                 )
             } else null
         }

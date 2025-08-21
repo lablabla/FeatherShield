@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.lablabla.feathershield.data.model.Device
 import com.lablabla.feathershield.data.repository.AuthRepository
@@ -19,7 +20,7 @@ import javax.inject.Inject
 class DeviceViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val deviceRepository: DeviceRepository,
-    private val authRepository: AuthRepository
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     private val deviceId: String = checkNotNull(savedStateHandle["deviceId"])
@@ -38,7 +39,23 @@ class DeviceViewModel @Inject constructor(
         }
     }
 
-    fun getCurrentUser(): FirebaseUser? {
-        return authRepository.getCurrentUser()
+    fun startStream() {
+        updateCommand("start_stream")
+    }
+
+    fun stopStream() {
+        updateCommand("stop_stream")
+    }
+
+    private fun updateCommand(command: String) {
+        viewModelScope.launch {
+            firestore.collection("commands")
+                .document(deviceId)
+                .set(
+                    hashMapOf(
+                        "command" to command
+                    )
+                )
+        }
     }
 }
