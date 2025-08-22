@@ -11,10 +11,11 @@ import com.lablabla.feathershield.ui.auth.AuthViewModel
 import com.lablabla.feathershield.ui.auth.LoginScreen
 import com.lablabla.feathershield.ui.dashboard.DashboardScreen
 import com.lablabla.feathershield.ui.dashboard.DashboardViewModel
-import com.lablabla.feathershield.ui.device.AddDeviceScreen
-import com.lablabla.feathershield.ui.device.AddDeviceViewModel
 import com.lablabla.feathershield.ui.device.DeviceScreen
 import com.lablabla.feathershield.ui.device.DeviceViewModel
+import com.lablabla.feathershield.ui.provisioning.ProvisioningScreen
+import com.lablabla.feathershield.ui.provisioning.ProvisioningViewModel
+import com.lablabla.feathershield.ui.provisioning.WifiCredentialsScreen
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
@@ -33,8 +34,13 @@ fun AppNavGraph(navController: NavHostController) {
             DashboardScreen(navController = navController, viewModel = viewModel)
         }
         composable("add_device") {
-            val viewModel = hiltViewModel<AddDeviceViewModel>()
-            AddDeviceScreen(navController = navController, viewModel = viewModel)
+            val viewModel = hiltViewModel<ProvisioningViewModel>()
+            ProvisioningScreen(navController = navController, viewModel = viewModel)
+        }
+        composable("wifi_credentials/{deviceId}") { backStackEntry ->
+            backStackEntry.arguments?.getString("deviceId")?.let { deviceId ->
+                WifiCredentialsScreen(navController = navController, deviceId = deviceId)
+            }
         }
         composable(
             route = "livefeed/{deviceId}",

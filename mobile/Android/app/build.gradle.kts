@@ -83,6 +83,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
 
     implementation(libs.androidx.media3.exoplayer.rtsp)
+    implementation(libs.accompanist.permissions)
 
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
