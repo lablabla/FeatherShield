@@ -87,4 +87,6 @@ dependencies {
 
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
+
+    implementation("io.github.g00fy2:versioncompare:1.5.0")
 }

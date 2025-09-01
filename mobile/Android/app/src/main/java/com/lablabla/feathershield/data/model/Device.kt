@@ -5,6 +5,8 @@ import java.util.Date
 
 data class Device(
     val id: String = "",
+    val fwVersion: String = "",
+    val isUpdateAvailable: Boolean = false,
     val name: String = "",
     val batteryLevel: Int = 0,
     val lastImageUrl: String = "",

@@ -64,7 +64,10 @@ fun DashboardScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(devices) { device ->
-                    DeviceListItem(device = device, onClick = {
+
+                    DeviceListItem(
+                        device = device,
+                        onClick = {
                         navController.navigate("livefeed/${device.id}")
                     })
                 }

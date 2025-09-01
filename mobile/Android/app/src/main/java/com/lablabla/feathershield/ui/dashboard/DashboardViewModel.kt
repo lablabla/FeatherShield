@@ -15,7 +15,7 @@ import javax.inject.Inject
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val deviceRepository: DeviceRepository
+    private val deviceRepository: DeviceRepository,
 ) : ViewModel() {
 
     private val _devices = MutableStateFlow<List<Device>>(emptyList())
@@ -39,4 +39,5 @@ class DashboardViewModel @Inject constructor(
             }
         }
     }
+
 }
