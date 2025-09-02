@@ -95,12 +95,20 @@ fun DeviceScreen(
 
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = {}
-                ) {
-                    Text("Spray")
+                Row {
+                    Button(
+                        onClick = {}
+                    ) {
+                        Text("Spray")
+                    }
+                    if (device?.isUpdateAvailable == true) {
+                        Button(
+                            onClick = { viewModel.updateFwCommand() }
+                        ) {
+                            Text("Update")
+                        }
+                    }
                 }
-
             }
         }
     }

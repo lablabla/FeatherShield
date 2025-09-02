@@ -47,15 +47,16 @@ class DeviceViewModel @Inject constructor(
         updateCommand("stop_stream")
     }
 
-    private fun updateCommand(command: String) {
+    fun updateFwCommand() {
+        updateCommand("update_firmware")
+    }
+
+    private fun updateCommand(command: String, args: HashMap<String, String>? = null) {
         viewModelScope.launch {
+            val commandHashMap = args ?: hashMapOf("command" to command)
             firestore.collection("commands")
                 .document(deviceId)
-                .set(
-                    hashMapOf(
-                        "command" to command
-                    )
-                )
+                .set(commandHashMap)
         }
     }
 }
