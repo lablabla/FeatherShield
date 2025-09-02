@@ -10,7 +10,8 @@ import requests
 from .backend_interface import BackendService
 
 class FirebaseBackend(BackendService):
-    def __init__(self):
+    def __init__(self, on_command_callback):
+        super().__init__(on_command_callback)
         service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", None)
         if not service_account_path:
             raise ValueError("FIREBASE_SERVICE_ACCOUNT_PATH environment variable must be set.")
@@ -27,7 +28,7 @@ class FirebaseBackend(BackendService):
         firebase_admin.initialize_app(cred, {'storageBucket': storage_bucket})
         self.db = firestore.client()
         self.bucket = storage.bucket()
-        self.devices = []
+        self.devices = []        
         self.listen_for_commands()
 
     def save_alert(self, device_id: str, image_data: bytes, battery_level: float):
@@ -88,18 +89,28 @@ class FirebaseBackend(BackendService):
         listener_thread.start()
 
     def _run_listener(self):
+
         # A simple, single-document listener
         def on_snapshot(doc_snapshot, changes, read_time):
+            if len(doc_snapshot) == 0:
+                return
+            try:
+                id = doc_snapshot[0].reference.path.split('/')[-1]
+            except Exception as e:
+                print(f"Error getting document ID: {e}")
+                return
             for change in changes:
                 if change.type == ChangeType.MODIFIED:
                     command_data = change.document.to_dict()
                     if command_data and 'command' in command_data:
                         command = command_data['command']
+                        print(f"[Commands listener] Received command for {id}: {command}")
                         if command == "start_stream":
-                            self.start_stream(device_id)
+                            self.start_stream(id)
                         elif command == "stop_stream":
-                            self.stop_stream(device_id)
-                        print(f"Received command for {device_id}: {command}")
+                            self.stop_stream(id)
+                        elif command == "update_firmware":
+                            self.update_firmware(id)
 
         
         for device_id in self.devices:
@@ -108,8 +119,13 @@ class FirebaseBackend(BackendService):
         while True:
             time.sleep(1)
 
+    def call_command_callback(self, command: str, device_id: str):
+        if self._on_command_callback:
+            self._on_command_callback(command, device_id)
+
     def start_stream(self, device_id: str):
         print(f"Starting stream for device {device_id}.")
+        self.call_command_callback("start_stream", device_id)
         path = f"{self.mtxmedia_url}/v3/config/paths/add/live/{device_id}"
         data = { "name": f"live/{device_id}" }
         try:
@@ -123,6 +139,7 @@ class FirebaseBackend(BackendService):
 
     def stop_stream(self, device_id: str):
         print(f"Stopping stream for device {device_id}.")
+        self.call_command_callback("stop_stream", device_id)
         path = f"{self.mtxmedia_url}/v3/config/paths/delete/live/{device_id}"
         try:
             response = requests.delete(path)
@@ -132,3 +149,7 @@ class FirebaseBackend(BackendService):
                 print(f"Failed to stop stream for device {device_id}. Status code: {response.status_code}, Response: {response.text}")
         except requests.RequestException as e:
             print(f"Error stopping stream for device {device_id}: {e}")
+
+    def update_firmware(self, device_id: str):
+        print(f"Updating firmware for device {device_id}.")
+        self.call_command_callback("update_firmware", device_id)

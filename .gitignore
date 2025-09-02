@@ -7,3 +7,4 @@
 **/feathershield-adminsdk.json
 **/__pycache__
 .vscode/
+**/build/
