@@ -1,0 +1,7 @@
+menu "FeatherShield Configuration"
+config FEATHERSHIELD_BROKER_URL
+    string "Broker URL"
+    default ""
+    help
+        URL of the MQTT broker.
+endmenu
