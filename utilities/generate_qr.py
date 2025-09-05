@@ -6,11 +6,12 @@ import os
 DEVICE_ID = "esp32-001"
 POP = "unique_pop_string_from_previous_step"
 
-def generate_qr_code(out_dir, device_id, pop):
+def generate_qr_code(out_dir, device_id):
     data = {
-        "version": 1,
-        "id": device_id,
-        "pop": pop
+        "ver": "v1",
+        "name": device_id,
+        "pop": device_id,
+        "transport": "ble"
     }
     json_data = json.dumps(data)
     qr = qrcode.QRCode(version=1, box_size=10, border=4)

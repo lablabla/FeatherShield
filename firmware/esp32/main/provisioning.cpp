@@ -13,6 +13,7 @@
 #include <wifi_provisioning/scheme_ble.h>
 
 #include "provisioning.h"
+#include "utils.h"
 
 
 static const char *TAG = "provisioning";
@@ -114,15 +115,6 @@ static void wifi_init_sta(void)
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
-static void get_device_service_name(char *service_name, size_t max)
-{
-    uint8_t eth_mac[6];
-    const char *ssid_prefix = "PROV_";
-    esp_wifi_get_mac(WIFI_IF_STA, eth_mac);
-    snprintf(service_name, max, "%s%02X%02X%02X",
-             ssid_prefix, eth_mac[3], eth_mac[4], eth_mac[5]);
-}
-
 const wifi_prov_event_handler_t wifi_prov_event_handler = {
     .event_cb = NULL,
     .user_data = NULL,
@@ -148,8 +140,6 @@ void provision()
 
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     wifi_prov_mgr_config_t config = {
-            /* What is the Provisioning Scheme that we want ?
-         * wifi_prov_scheme_softap or wifi_prov_scheme_ble */
         .scheme = wifi_prov_scheme_ble,
         .scheme_event_handler = WIFI_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BTDM,
         .app_event_handler = wifi_prov_event_handler,
@@ -170,38 +160,32 @@ void provision()
     if (!provisioned) {
         ESP_LOGI(TAG, "Starting provisioning");
 
-        /* What is the Device Service Name that we want
-         * This translates to :
-         *     - Wi-Fi SSID when scheme is wifi_prov_scheme_softap
-         *     - device name when scheme is wifi_prov_scheme_ble
-         */
-        char service_name[12];
-        get_device_service_name(service_name, sizeof(service_name));
-
         wifi_prov_security_t security = WIFI_PROV_SECURITY_1;
-        const char *pop = "abcd1234";
-
+        
+        nvs_handle nvs_handle;
+        ESP_ERROR_CHECK(nvs_open("info", NVS_READONLY, &nvs_handle) != ESP_OK);
+        const char *device_id = nvs_load_value_if_exist(nvs_handle, "device_id");
+        ESP_LOGI(TAG, "Device ID: %s", device_id);
+        nvs_close(nvs_handle);
         /* This is the structure for passing security parameters
          * for the protocomm security 1.
          */
-        wifi_prov_security1_params_t *sec_params = pop;
+        wifi_prov_security1_params_t *sec_params = device_id;
 
         // const char *username  = NULL;
         const char *service_key = NULL;
+        // Random UUID: a49a2a78-29e8-4b75-8b7a-8b8243a3d82a
         uint8_t custom_service_uuid[] = {
             /* LSB <---------------------------------------
              * ---------------------------------------> MSB */
-            0xb4, 0xdf, 0x5a, 0x1c, 0x3f, 0x6b, 0xf4, 0xbf,
-            0xea, 0x4a, 0x82, 0x03, 0x04, 0x90, 0x1a, 0x02,
+        0x2a, 0xd8, 0xa3, 0x43, 0x82, 0x8b, 0x7a, 0x8b,
+        0x75, 0x4b, 0xe8, 0x29, 0x78, 0x2a, 0x9a, 0xa4,
         };
 
-        /* If your build fails with linker errors at this point, then you may have
-         * forgotten to enable the BT stack or BTDM BLE settings in the SDK (e.g. see
-         * the sdkconfig.defaults in the example project) */
         wifi_prov_scheme_ble_set_service_uuid(custom_service_uuid);
         
         /* Start provisioning service */
-        ESP_ERROR_CHECK(wifi_prov_mgr_start_provisioning(security, (const void *) sec_params, service_name, service_key));
+        ESP_ERROR_CHECK(wifi_prov_mgr_start_provisioning(security, (const void *) sec_params, device_id, service_key));
         
     } else {
         ESP_LOGI(TAG, "Already provisioned, starting Wi-Fi STA");

@@ -1,0 +1,22 @@
+idf-component-manager
+urllib3<2
+
+esptool
+
+esp-coredump
+
+# esp-idf-kconfig: Config name was extended from 40 to 50 chars since 2.0.2 version
+esp-idf-kconfig
+
+freertos_gdb
+
+esp-idf-monitor
+
+esp-idf-size
+
+esp-idf-nvs-partition-gen
+
+google-cloud-secret-manager
+
+qrcode
+Pillow

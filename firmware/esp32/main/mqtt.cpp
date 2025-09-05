@@ -7,37 +7,14 @@
 
 #include <stdlib.h>
 #include "mqtt.h"
+#include "nvs.h"
+#include "utils.h"
 
 static const char *TAG = "MQTT";
 
 static char* private_key = NULL;
 static char* certificate = NULL;
 static char* ca_cert = NULL;
-
-char * nvs_load_value_if_exist(nvs_handle handle, const char* key)
-{
-    // Try to get the size of the item
-    size_t value_size;
-    if(nvs_get_str(handle, key, NULL, &value_size) != ESP_OK){
-        ESP_LOGE(TAG, "Failed to get size of key: %s", key);
-        return NULL;
-    }
-    ESP_LOGI(TAG, "Key %s has size %zu", key, value_size);
-
-    char* value = (char*)malloc(value_size);
-    if (!value) {
-        ESP_LOGE(TAG, "Failed to allocate memory for key: %s", key);
-        return NULL;
-    }
-    if(nvs_get_str(handle, key, value, &value_size) != ESP_OK){
-        ESP_LOGE(TAG, "Failed to load key: %s", key);
-        free(value);
-        return NULL;
-    }
-    ESP_LOGI(TAG, "Loaded key %s", key);
-
-    return value;
-}
 
 static void log_error_if_nonzero(const char *message, int error_code)
 {
@@ -114,6 +91,8 @@ void mqtt_start(void)
     private_key = nvs_load_value_if_exist(handle, "client_key");
     certificate = nvs_load_value_if_exist(handle, "client_cert");
     ca_cert = nvs_load_value_if_exist(handle, "ca_cert");
+
+    nvs_close(handle);
 
     esp_mqtt_client_config_t mqtt_cfg = {};
     mqtt_cfg.broker.address.uri = CONFIG_FEATHERSHIELD_BROKER_URL;

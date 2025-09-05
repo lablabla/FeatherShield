@@ -1,5 +1,8 @@
 idf_component_register(SRCS 
-  "main.cpp" "provisioning.cpp" "mqtt.cpp"
+  "main.cpp"
+  "provisioning.cpp"
+  "mqtt.cpp"
+  "utils.cpp"
    INCLUDE_DIRS "." REQUIRES wifi_provisioning protocomm mqtt json)
 
 set(EXTRA_COMPONENT_DIRS
