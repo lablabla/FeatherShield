@@ -89,4 +89,17 @@ dependencies {
     implementation(libs.coil.network.okhttp)
 
     implementation("io.github.g00fy2:versioncompare:1.5.0")
+
+    // ESP-IDF Provisioning Library
+    implementation(libs.esp.idf.provisioning.android)
+
+    // ML Kit Barcode Scanning
+    implementation("com.google.mlkit:barcode-scanning:17.2.0")
+    // CameraX for the scanner preview
+    implementation("androidx.camera:camera-core:1.3.4")
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
+
+    implementation("org.greenrobot:eventbus:3.3.1")
 }

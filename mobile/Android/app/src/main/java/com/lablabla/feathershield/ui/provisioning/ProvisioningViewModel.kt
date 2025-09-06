@@ -1,60 +1,63 @@
 package com.lablabla.feathershield.ui.provisioning
 
-import android.annotation.SuppressLint
-import android.bluetooth.BluetoothDevice
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lablabla.feathershield.data.model.WifiCredentials
-import com.lablabla.feathershield.data.repository.BleProvisioningRepository
+import com.lablabla.feathershield.data.repository.EspProvisioningRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import javax.inject.Inject
 
 @HiltViewModel
-@SuppressLint("MissingPermission")
 class ProvisioningViewModel @Inject constructor(
-    private val bleProvisioningRepository: BleProvisioningRepository
+    private val espProvisioningRepository: EspProvisioningRepository
 ) : ViewModel() {
 
-    private val _provisioningState = MutableStateFlow<ProvisioningState>(ProvisioningState.Idle)
-    val provisioningState: StateFlow<ProvisioningState> = _provisioningState.asStateFlow()
+    val provisioningState = espProvisioningRepository.provisioningState
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProvisioningState.Scanning)
 
-    fun startScan() {
-        _provisioningState.value = ProvisioningState.Scanning
+    private var pop: String? = null
+    private var deviceName: String? = null
+
+    fun onQrCodeScanned(qrCodeData: String) {
         viewModelScope.launch {
-            bleProvisioningRepository.startScan()
-            bleProvisioningRepository.foundDevices.collect { devices ->
-                if (devices.isNotEmpty()) {
-                    _provisioningState.value = ProvisioningState.DevicesFound(devices)
-                }
+            try {
+                val qrCodeJson = JSONObject(qrCodeData)
+                pop = qrCodeJson.getString("pop")
+                deviceName = qrCodeJson.getString("name")
+                espProvisioningRepository.startBleScan(deviceName!!, pop!!)
+            } catch (e: Exception) {
+                // TODO: Handle error
             }
         }
     }
 
-    fun connectDevice(device: BluetoothDevice) {
-        _provisioningState.value = ProvisioningState.Connecting(device)
-        bleProvisioningRepository.connectDevice(device)
+    fun onNetworkSelected(ssid: String, password: String) {
+        espProvisioningRepository.provisionDevice(ssid, password)
     }
 
     fun sendWifiCredentials(credentials: WifiCredentials) {
-        viewModelScope.launch {
-            bleProvisioningRepository.sendWifiCredentials(credentials)
-        }
-    }
-
-    fun resetState() {
-        _provisioningState.value = ProvisioningState.Idle
     }
 }
 
+data class StepStatus(
+    val inProgress: Boolean = false,
+    val isDone: Boolean = false
+)
+
 sealed class ProvisioningState {
-    data object Idle : ProvisioningState()
-    data object Scanning : ProvisioningState()
-    data class DevicesFound(val devices: List<BluetoothDevice>) : ProvisioningState()
-    data class Connecting(val device: BluetoothDevice) : ProvisioningState()
-    data object ProvisioningSuccess : ProvisioningState()
+    object Scanning : ProvisioningState()
+    object ConnectingToDevice : ProvisioningState()
+    object NetworkScan : ProvisioningState()
+    data class NetworkSelection(val networks: List<String>) : ProvisioningState()
+    data class Provisioning(
+        val sendingCredentialsStatus: StepStatus,
+        val applyingWifiConnectionStatus: StepStatus,
+        val checkingProvisioningStatus: StepStatus
+    ) : ProvisioningState()
+    object Success : ProvisioningState()
     data class Error(val message: String) : ProvisioningState()
 }

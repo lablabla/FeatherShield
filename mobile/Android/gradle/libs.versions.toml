@@ -2,6 +2,7 @@
 accompanistPermissions = "0.37.3"
 agp = "8.12.0"
 coilNetworkOkhttp = "3.0.4"
+espIdfProvisioningAndroid = "lib-2.2.5"
 firebaseBom = "34.1.0"
 hiltAndroidVersion = "2.57"
 kotlin = "2.0.21"
@@ -21,6 +22,7 @@ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = 
 androidx-media3-exoplayer-rtsp = { module = "androidx.media3:media3-exoplayer-rtsp", version.ref = "media3ExoplayerRtsp" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilNetworkOkhttp" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coilNetworkOkhttp" }
+esp-idf-provisioning-android = { module = "com.github.espressif:esp-idf-provisioning-android", version.ref = "espIdfProvisioningAndroid" }
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
