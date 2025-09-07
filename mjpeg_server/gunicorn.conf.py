@@ -1,24 +1,28 @@
-# gunicorn.conf.py
-# Configuration file for running the Flask app with Gunicorn.
+# Gunicorn configuration file
 
-# The socket to bind to.
-# '0.0.0.0' makes the server accessible from any IP address.
+# --- Server Socket ---
+# Bind to all network interfaces on port 5000. Gunicorn will run on this port.
+# A reverse proxy like Nginx will forward requests from port 80/443 to this.
 bind = "0.0.0.0:5000"
 
-# Number of worker processes. A good starting point is (2 x $num_cores) + 1.
-# For a small GCE instance, 3 is a reasonable number.
+# --- Worker Processes ---
+# Use the gevent worker class for asynchronous I/O. This is essential for
+# handling long-lived streaming connections without blocking other requests.
+worker_class = "gevent"
+
+# The number of worker processes. A good starting point is (2 x $num_cores) + 1.
 workers = 3
 
-# Use threaded workers. This is CRITICAL for our use case.
-# It allows each worker to handle multiple connections at once,
-# so a long-lived stream from an ESP32 doesn't block requests
-# from the Android app.
-worker_class = "gthread"
-threads = 4
+# The number of threads per worker. When using gevent, this is typically 1.
+threads = 1
 
-# Log level
-loglevel = "info"
+# --- Timeouts ---
+# Set a long timeout to allow for persistent streaming connections from the ESP32.
+# Value is in seconds. 10 minutes should be more than enough.
+timeout = 600
 
-# Log file paths
-accesslog = "-"  # Log to stdout
-errorlog = "-"   # Log to stderr
+# --- Logging ---
+# Log to stdout and stderr so that systemd can capture the output.
+accesslog = "-"
+errorlog = "-"
+
