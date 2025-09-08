@@ -1,4 +1,8 @@
-Flask
-gunicorn
-firebase-admin
-gevent
+# High-performance, asynchronous web framework
+fastapi==0.111.0
+# ASGI server to run FastAPI
+uvicorn[standard]==0.30.1
+# Required by FastAPI for streaming request bodies
+python-multipart==0.0.9
+# Firebase Admin SDK
+firebase-admin==6.5.0

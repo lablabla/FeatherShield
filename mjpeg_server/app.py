@@ -1,175 +1,113 @@
 import os
-import threading
-from functools import wraps
-from flask import Flask, Response, request, jsonify
-import firebase_admin
-from firebase_admin import auth, credentials
 import logging
+import asyncio
+from fastapi import FastAPI, Request, HTTPException, Response
+from fastapi.responses import StreamingResponse
 
-# --- Application Setup ---
-
-app = Flask(__name__)
-
-# --- Firebase Authentication ---
-
-# Initialize Firebase Admin SDK
-# The service account key is loaded from the same environment variable
-# as the cloud_bridge, so no new configuration is needed.
-try:
-    service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
-    if not service_account_path:
-        raise ValueError("FIREBASE_SERVICE_ACCOUNT_PATH environment variable not set.")
-    
-    cred = credentials.Certificate(service_account_path)
-    firebase_admin.initialize_app(cred)
-    print("Firebase Admin SDK initialized successfully.")
-except Exception as e:
-    print(f"Error initializing Firebase Admin SDK: {e}")
-    exit(1)
-    
-# --- In-Memory Frame Buffer ---
-# This dictionary will hold the latest JPEG frame for each device.
-# We use a lock to make sure it's thread-safe, as multiple workers
-# and threads will be accessing it concurrently.
+# --- In-memory storage for video streams ---
 streams = {}
-streams_lock = threading.Lock()
+# Use asyncio's Lock for safe concurrent access in an async environment
+streams_lock = asyncio.Lock()
 
-# --- Authentication Decorators ---
+# --- Logging Configuration ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-def firebase_auth_required(f):
+# --- FastAPI App Initialization ---
+app = FastAPI()
+
+# --- Authentication (Placeholders) ---
+async def verify_device_certificate(request: Request):
+    # TODO: Implement mTLS client certificate verification from request headers
+    # For now, we'll allow it to pass for testing.
+    logger.debug(f"Device connected from {request.client.host}")
+    return True
+
+async def verify_firebase_token(token: str):
+    # TODO: Implement Firebase JWT verification
+    return "test_user"
+
+# --- Streaming Endpoints ---
+
+@app.post("/upload_stream/{device_id}")
+async def upload_stream(device_id: str, request: Request):
     """
-    A decorator to protect endpoints that require a valid Firebase ID token.
-    This is for authenticating the Android app user.
+    Receives and processes a long-lived MJPEG stream from an ESP32.
+    FastAPI and Uvicorn are designed to handle this kind of long-lived,
+    asynchronous request efficiently.
     """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
+    if not await verify_device_certificate(request):
+        raise HTTPException(status_code=401, detail="Device certificate invalid")
 
-        # THIS IS FOR DEBUG ONLY NOW
-        return f(*args, **kwargs)
-
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return jsonify({"error": "Authorization header is missing or invalid"}), 401
-        
-        id_token = auth_header.split('Bearer ')[1]
-        try:
-            # Verify the ID token is valid and not revoked.
-            decoded_token = auth.verify_id_token(id_token)
-        except auth.InvalidIdTokenError:
-            return jsonify({"error": "Invalid ID token"}), 403
-        except auth.ExpiredIdTokenError:
-            return jsonify({"error": "ID token has expired"}), 403
-        except Exception as e:
-            return jsonify({"error": f"Token verification failed: {e}"}), 401
-            
-        return f(*args, **kwargs)
-    return decorated_function
-
-def mtls_auth_required(f):
-    """
-    A placeholder decorator for mTLS authentication.
-    In a production setup, mTLS is best handled by a reverse proxy like Nginx.
-    The proxy would verify the client certificate and pass the device ID
-    (from the certificate's Common Name) to the Flask app in a header.
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # In a real setup, you would check a header set by Nginx, e.g.:
-        # device_id_from_cert = request.headers.get('X-Client-Cert-CN')
-        # if not device_id_from_cert or device_id_from_cert != kwargs.get('device_id'):
-        #     return jsonify({"error": "Client certificate is invalid or does not match device ID"}), 403
-        
-        # For now, we'll just log that this check would happen.
-        print(f"INFO: mTLS check passed for device: {kwargs.get('device_id')}")
-        return f(*args, **kwargs)
-    return decorated_function
-
-# --- API Endpoints ---
-
-@app.route('/upload_stream/<string:device_id>', methods=['POST'])
-@mtls_auth_required
-def upload_stream(device_id):
-    """
-    Endpoint for the ESP32 to POST its MJPEG stream.
-    This function reads the multipart stream and updates the frame buffer.
-    """
-    logging.info(f"Stream started for device: {device_id}")
+    logger.info(f"Stream connection opened for device: {device_id}")
     
-    # The input stream from the ESP32
-    stream = request.stream
-    
-    # Read the stream chunk by chunk to find the multipart boundary
     boundary = b'--frame'
-    frame_data = b''
+    buffer = b''
     
     try:
-        while True:
-            # This read will block until data is available or the client disconnects,
-            # thanks to the gevent worker.
-            chunk = stream.read(4096)
-            if not chunk:
-                logging.info(f"Received empty chunk for {device_id}. Client disconnected.")
-                break
-            
-            frame_data += chunk
-            parts = frame_data.split(boundary)
-            
-            if len(parts) > 1:
-                for i in range(len(parts) - 1):
-                    part = parts[i]
-                    if not part:
-                        continue
-                    
-                    jpeg_start = part.find(b'\r\n\r\n')
-                    if jpeg_start != -1:
-                        jpeg_frame = part[jpeg_start + 4:]
-                        if jpeg_frame:
-                            with streams_lock:
-                                streams[device_id] = jpeg_frame
-                
-                frame_data = parts[-1]
+        # Asynchronously iterate over the raw request body chunks
+        async for chunk in request.stream():
+            buffer += chunk
+            # Process all full frames found in the buffer
+            while boundary in buffer:
+                parts = buffer.split(boundary, 1)
+                frame_part = parts[0]
+                buffer = parts[1]
+
+                # Find the start of the JPEG data
+                jpeg_start = frame_part.find(b'\r\n\r\n')
+                if jpeg_start != -1:
+                    jpeg_frame = frame_part[jpeg_start + 4:]
+                    if jpeg_frame:
+                        # Store the latest frame
+                        async with streams_lock:
+                            streams[device_id] = jpeg_frame
+                        logger.debug(f"Received frame from {device_id}, size: {len(jpeg_frame)} bytes")
 
     except Exception as e:
-        logging.error(f"Error while reading stream from {device_id}: {e}")
+        logger.error(f"Error while reading stream from {device_id}: {e}")
     finally:
-        logging.info(f"Stream ended for device: {device_id}")
-        with streams_lock:
+        # Clean up when the ESP32 disconnects
+        logger.info(f"Stream ended for device: {device_id}. Cleaning up.")
+        async with streams_lock:
             if device_id in streams:
                 del streams[device_id]
                 
-    return "Stream ended", 200
+    return Response(content="Stream session finished", status_code=200)
 
+async def frame_generator(device_id: str):
+    """
+    An asynchronous generator that yields the latest frame for a device.
+    """
+    logger.info(f"Starting frame generator for device: {device_id}")
+    try:
+        last_frame_sent = None
+        while True:
+            frame = None
+            async with streams_lock:
+                frame = streams.get(device_id)
 
-@app.route('/stream/<string:device_id>', methods=['GET'])
-@firebase_auth_required
-def get_stream(device_id):
+            if frame:
+                if frame != last_frame_sent:
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                    last_frame_sent = frame
+            else:
+                logger.warning(f"No active stream for device {device_id}. Viewer disconnecting.")
+                break
+            
+            # Use asyncio.sleep to prevent blocking the server's event loop
+            await asyncio.sleep(0.1) # ~10 FPS
+    finally:
+        logger.info(f"Frame generator stopped for device: {device_id}")
+
+@app.get("/stream/{device_id}")
+async def stream(device_id: str):
     """
-    Endpoint for the Android app to GET the latest frame.
-    This returns the latest frame from the buffer as a JPEG image.
+    Serves the MJPEG stream to the Android app.
     """
-    return Response(frame_generator(device_id),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+    # TODO: Add Firebase authentication check here using a dependency
     
+    return StreamingResponse(frame_generator(device_id),
+                             media_type='multipart/x-mixed-replace; boundary=frame')
 
-def frame_generator(device_id):
-    """
-    A generator function that yields the latest frame for a device.
-    This is used to stream to the Android app.
-    """
-    while True:
-        with streams_lock:
-            frame = streams.get(device_id)
-
-        if frame:
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-        else:
-            # If no stream is active, you could yield a placeholder image or just wait.
-            # For now, we'll just signal the stream is unavailable and break.
-            logging.warning(f"No active stream found for device {device_id}")
-            break
-
-if __name__ == '__main__':
-    # This is for local development only.
-    # In production, use Gunicorn: gunicorn --config gunicorn.conf.py app:app
-    app.run(host='0.0.0.0', port=5000, debug=True, threaded=True)
