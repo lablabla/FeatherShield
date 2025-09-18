@@ -1,19 +1,15 @@
 package com.lablabla.feathershield.ui.device
 
-import android.util.Log
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import android.content.res.Configuration
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.SignalWifi4Bar
+import androidx.compose.material.icons.filled.StopCircle
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -23,119 +19,224 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.lablabla.feathershield.ui.theme.FeatherShieldTheme
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+
+// --- STATE AND ACTIONS DEFINITIONS ---
+
+data class DeviceUiState(
+    val deviceId: String? = null,
+    val batteryLevel: Int? = null,
+    val lastImageUrl: String? = null,
+    val isUpdateAvailable: Boolean = false,
+    val isLoading: Boolean = true
+)
+
+sealed interface DeviceAction {
+    object OnBackClick : DeviceAction
+    object OnStartStreamClick : DeviceAction
+    object OnStopStreamClick : DeviceAction
+    object OnSprayClick : DeviceAction
+    object OnUpdateFirmwareClick : DeviceAction
+}
+
+// --- STATEFUL CONTAINER (THE ROUTE) ---
+
+@Composable
+fun DeviceRoute(
+    navController: NavController,
+    viewModel: DeviceViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    DeviceScreen(
+        state = uiState,
+        onAction = { action ->
+            if (action is DeviceAction.OnBackClick) {
+                navController.popBackStack()
+            } else {
+                viewModel.handleAction(action)
+            }
+        }
+    )
+}
+
+// --- STATELESS UI COMPONENT ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeviceScreen(
-    navController: NavController,
-    viewModel: DeviceViewModel = hiltViewModel(),
+    state: DeviceUiState,
+    onAction: (DeviceAction) -> Unit
 ) {
-    val device by viewModel.device.collectAsState()
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Nestbox: ${device?.id ?: "Loading..."}") }
+                title = { Text(state.deviceId ?: "Loading...") },
+                navigationIcon = {
+                    IconButton(onClick = { onAction(DeviceAction.OnBackClick) }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (device == null) {
+        if (state.isLoading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
-            } else {
-                Text(text = "Battery: ${device?.batteryLevel}%")
-                Spacer(modifier = Modifier.height(16.dp))
-                RtspPlayer(device!!.liveStreamUrl)
-//                AsyncImage(
-//                    model = ImageRequest.Builder(LocalContext.current)
-//                        .data(device?.lastImageUrl)
-//                        .crossfade(true)
-//                        .build(),
-////                    contentScale = ContentScale.FillBounds,
-//                    contentDescription = "Latest image from device",
-//                    onError = { throwable ->
-//                        // Handle the error, e.g., log it or show a message
-//                        Log.e("CoilError", "Image loading failed: ${throwable.result}")
-//                    },
-//                    modifier = Modifier.fillMaxWidth()
-//                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(modifier = Modifier.fillMaxWidth())
-                {
-                    Button(
-                        onClick = {
-                            viewModel.startStream();
-                        }
-                    ) {
-                        Text("Start Stream")
-                    }
-                    Button(
-                        onClick = {
-                            viewModel.stopStream();
-                        }
-                    ) {
-                        Text("Stop Stream")
-                    }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Media display area (Image or Video Stream)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f) // Takes up available vertical space
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.shapes.medium
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(state.lastImageUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Latest image from device",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
+                }
 
+                Spacer(modifier = Modifier.height(16.dp))
+                // Device Info
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Battery: ${state.batteryLevel ?: "N/A"}%",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Row {
-                    Button(
-                        onClick = {}
-                    ) {
+
+                // Action Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+                ) {
+                    Button(onClick = { onAction(DeviceAction.OnStartStreamClick) }) {
+                        Icon(Icons.Default.Videocam, contentDescription = null)
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text("Start Stream")
+                    }
+
+                    Button(onClick = { onAction(DeviceAction.OnSprayClick) }) {
+                        Icon(Icons.Default.SignalWifi4Bar, contentDescription = null) // Placeholder Icon
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
                         Text("Spray")
                     }
-                    if (device?.isUpdateAvailable == true) {
-                        Button(
-                            onClick = { viewModel.updateFwCommand() }
-                        ) {
-                            Text("Update")
-                        }
+                }
+                if (state.isUpdateAvailable) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { onAction(DeviceAction.OnUpdateFirmwareClick) },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) {
+                        Icon(Icons.Default.SystemUpdate, contentDescription = null)
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text("Update Firmware")
                     }
                 }
             }
         }
     }
 }
+// --- PREVIEW SECTION ---
 
+@Preview(name = "Light Mode - Default", showBackground = true, widthDp = 360)
 @Composable
-fun RtspPlayer(rtspUri: String) {
-    val context = LocalContext.current
-    val player = remember {
-        ExoPlayer.Builder(context).build()
-    }
-
-    DisposableEffect(Unit) {
-        player.setMediaItem(MediaItem.fromUri(rtspUri))
-        player.prepare()
-        player.playWhenReady = true
-
-        onDispose {
-            player.release()
+fun DeviceScreenPreview_Light() {
+    FeatherShieldTheme {
+        Surface {
+            DeviceScreen(
+                state = DeviceUiState(
+                    isLoading = false,
+                    deviceId = "N3ST-001",
+                    batteryLevel = 88,
+                    lastImageUrl = "https://placehold.co/600x400/EEE/31343C?text=Last+Capture",
+                    isUpdateAvailable = false
+                ),
+                onAction = {}
+            )
         }
     }
-    AndroidView(
-        factory = { ctx ->
-            PlayerView(ctx).apply {
-                this.player = player
-            }
-        },
-        modifier = Modifier.fillMaxSize(0.75f)
-    )
+}
+
+@Preview(name = "Dark Mode", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true, widthDp = 360)
+@Composable
+fun DeviceScreenPreview_Dark_Streaming() {
+    FeatherShieldTheme {
+        Surface {
+            DeviceScreen(
+                state = DeviceUiState(
+                    isLoading = false,
+                    deviceId = "N3ST-002",
+                    batteryLevel = 45,
+                ),
+                onAction = {}
+            )
+        }
+    }
+}
+
+@Preview(name = "Dark Mode - Update", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true, widthDp = 360)
+@Composable
+fun DeviceScreenPreview_Dark_Update() {
+    FeatherShieldTheme {
+        Surface {
+            DeviceScreen(
+                state = DeviceUiState(
+                    isLoading = false,
+                    deviceId = "N3ST-002",
+                    batteryLevel = 45,
+                    isUpdateAvailable = true
+                ),
+                onAction = {}
+            )
+        }
+    }
+}
+
+@Preview(name = "Loading State", showBackground = true, widthDp = 360)
+@Composable
+fun DeviceScreenPreview_Loading() {
+    FeatherShieldTheme {
+        Surface {
+            DeviceScreen(
+                state = DeviceUiState(isLoading = true),
+                onAction = {}
+            )
+        }
+    }
 }

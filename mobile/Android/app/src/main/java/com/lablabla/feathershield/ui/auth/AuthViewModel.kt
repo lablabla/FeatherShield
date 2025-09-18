@@ -4,11 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseUser
-import com.lablabla.feathershield.data.repository.AuthRepository
+import com.lablabla.feathershield.data.repository.AuthRepository // Assuming this is your repository's path
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -17,53 +18,76 @@ class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
-    val authState: StateFlow<AuthState> = _authState.asStateFlow()
+    private val _uiState = MutableStateFlow(LoginUiState())
+    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    fun signIn(email: String, password: String) {
-        _authState.value = AuthState.Loading
+    fun handleAction(action: LoginAction) {
+        when (action) {
+            is LoginAction.OnEmailChange -> _uiState.update { it.copy(email = action.email) }
+            is LoginAction.OnPasswordChange -> _uiState.update { it.copy(password = action.password) }
+            is LoginAction.OnTogglePasswordVisibility -> _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
+            is LoginAction.OnSignInClick -> signIn()
+            is LoginAction.OnSignUpClick -> signUp()
+            is LoginAction.OnGoogleSignInResult -> {
+                action.idToken?.let { signInWithGoogle(it) }
+                    ?: _uiState.update { it.copy(authState = AuthState.Error("Google Sign-In failed: No ID token found.")) }
+            }
+            is LoginAction.OnGoogleSignInError -> _uiState.update { it.copy(authState = AuthState.Error(action.message)) }
+            is LoginAction.OnErrorShown -> _uiState.update { it.copy(authState = AuthState.Idle) }
+            is LoginAction.OnGoogleSignInClick -> { /* Handled in the UI Layer */ }
+        }
+    }
+
+    private fun signIn() {
+        val currentState = _uiState.value
+        // Basic validation
+        if (currentState.email.isBlank() || currentState.password.isBlank()) {
+            _uiState.update { it.copy(authState = AuthState.Error("Email and password cannot be empty.")) }
+            return
+        }
+
         viewModelScope.launch {
+            _uiState.update { it.copy(authState = AuthState.Loading) }
             try {
-                val result = authRepository.signIn(email, password)
-                _authState.value = AuthState.Success(result)
+                val result = authRepository.signIn(currentState.email, currentState.password)
+                _uiState.update { it.copy(authState = AuthState.Success(result)) }
             } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.message ?: "An unknown error occurred")
+                _uiState.update { it.copy(authState = AuthState.Error(e.message ?: "An unknown error occurred.")) }
             }
         }
     }
 
-    fun signUp(email: String, password: String) {
-        _authState.value = AuthState.Loading
+    private fun signUp() {
+        val currentState = _uiState.value
+        if (currentState.email.isBlank() || currentState.password.isBlank()) {
+            _uiState.update { it.copy(authState = AuthState.Error("Email and password cannot be empty.")) }
+            return
+        }
+
         viewModelScope.launch {
+            _uiState.update { it.copy(authState = AuthState.Loading) }
             try {
-                val result = authRepository.createUser(email, password)
-                _authState.value = AuthState.Success(result)
+                val result = authRepository.createUser(currentState.email, currentState.password)
+                _uiState.update { it.copy(authState = AuthState.Success(result)) }
             } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.message ?: "An unknown error occurred")
+                _uiState.update { it.copy(authState = AuthState.Error(e.message ?: "An unknown error occurred.")) }
             }
         }
     }
 
-    fun signInWithGoogle(idToken: String) {
-        _authState.value = AuthState.Loading
+    private fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
+            _uiState.update { it.copy(authState = AuthState.Loading) }
             try {
                 val result = authRepository.signInWithGoogle(idToken)
-                _authState.value = AuthState.Success(result)
+                _uiState.update { it.copy(authState = AuthState.Success(result)) }
             } catch (e: Exception) {
-                _authState.value = AuthState.Error(e.message ?: "An unknown error occurred")
+                _uiState.update { it.copy(authState = AuthState.Error(e.message ?: "An unknown error occurred.")) }
             }
         }
     }
 
-    fun setAuthError(message: String) {
-        _authState.value = AuthState.Error(message)
-    }
-
-    fun resetState() {
-        _authState.value = AuthState.Idle
-    }
-
+    // This function can remain if you need direct access to the user elsewhere.
     fun getCurrentUser() : FirebaseUser? {
         return authRepository.getCurrentUser()
     }

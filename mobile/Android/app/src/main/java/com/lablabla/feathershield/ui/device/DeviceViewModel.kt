@@ -3,16 +3,14 @@ package com.lablabla.feathershield.ui.device
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
-import com.lablabla.feathershield.data.model.Device
-import com.lablabla.feathershield.data.repository.AuthRepository
 import com.lablabla.feathershield.data.repository.DeviceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -24,39 +22,57 @@ class DeviceViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val deviceId: String = checkNotNull(savedStateHandle["deviceId"])
-    private val _device = MutableStateFlow<Device?>(null)
-    val device: StateFlow<Device?> = _device.asStateFlow()
+    private val _uiState = MutableStateFlow(DeviceUiState(isLoading = true, deviceId = deviceId))
+    val uiState: StateFlow<DeviceUiState> = _uiState.asStateFlow()
 
     init {
         getDevice()
     }
 
-    private fun getDevice() {
-        viewModelScope.launch {
-            deviceRepository.getDevice(deviceId).collect {
-                _device.value = it
-            }
+    fun handleAction(action: DeviceAction) {
+        when (action) {
+            is DeviceAction.OnStartStreamClick -> updateCommand("start_stream")
+            is DeviceAction.OnStopStreamClick -> updateCommand("stop_stream")
+            is DeviceAction.OnUpdateFirmwareClick -> updateCommand("update_firmware")
+            is DeviceAction.OnSprayClick -> updateCommand("spray") // Assuming "spray" is a valid command
+            is DeviceAction.OnBackClick -> { /* No-op, handled by the Route */ }
         }
     }
 
-    fun startStream() {
-        updateCommand("start_stream")
-    }
-
-    fun stopStream() {
-        updateCommand("stop_stream")
-    }
-
-    fun updateFwCommand() {
-        updateCommand("update_firmware")
-    }
-
-    private fun updateCommand(command: String, args: HashMap<String, String>? = null) {
+    private fun getDevice() {
         viewModelScope.launch {
-            val commandHashMap = args ?: hashMapOf("command" to command)
+            deviceRepository.getDevice(deviceId)
+                .catch {
+                    // Handle potential errors, e.g., device not found or permission issues
+                    _uiState.update { it.copy(isLoading = false) }
+                }
+                .collect { device ->
+                    // Map the domain model 'Device' to the 'DeviceUiState'
+                    _uiState.update {
+                        if (device != null) {
+                            it.copy(
+                                isLoading = false,
+                                batteryLevel = device.batteryLevel,
+                                lastImageUrl = device.lastImageUrl,
+                                isUpdateAvailable = device.isUpdateAvailable,
+                            )
+                        } else {
+                            // Handle case where device is null (e.g., deleted)
+                            it.copy(isLoading = false)
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun updateCommand(command: String, args: HashMap<String, Any>? = null) {
+        viewModelScope.launch {
+            // Use a map of String to Any for broader compatibility with Firestore
+            val commandMap = args ?: hashMapOf("command" to command)
             firestore.collection("commands")
                 .document(deviceId)
-                .set(commandHashMap)
+                .set(commandMap)
+            // Optionally add .await() and try/catch for error handling
         }
     }
 }

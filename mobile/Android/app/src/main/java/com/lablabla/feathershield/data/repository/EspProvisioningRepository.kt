@@ -13,6 +13,7 @@ import com.espressif.provisioning.WiFiAccessPoint
 import com.espressif.provisioning.listeners.BleScanListener
 import com.espressif.provisioning.listeners.ProvisionListener
 import com.espressif.provisioning.listeners.WiFiScanListener
+import com.lablabla.feathershield.ui.provisioning.ProvisioningFlowState
 import com.lablabla.feathershield.ui.provisioning.ProvisioningState
 import com.lablabla.feathershield.ui.provisioning.StepStatus
 import kotlinx.coroutines.flow.MutableStateFlow

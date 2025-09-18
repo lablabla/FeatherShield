@@ -8,14 +8,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.lablabla.feathershield.ui.auth.AuthViewModel
-import com.lablabla.feathershield.ui.auth.LoginScreen
-import com.lablabla.feathershield.ui.dashboard.DashboardScreen
+import com.lablabla.feathershield.ui.auth.LoginRoute
+import com.lablabla.feathershield.ui.dashboard.DashboardRoute
 import com.lablabla.feathershield.ui.dashboard.DashboardViewModel
-import com.lablabla.feathershield.ui.device.DeviceScreen
+import com.lablabla.feathershield.ui.device.DeviceRoute
 import com.lablabla.feathershield.ui.device.DeviceViewModel
-import com.lablabla.feathershield.ui.provisioning.ProvisioningScreen
+import com.lablabla.feathershield.ui.provisioning.ProvisioningRoute
 import com.lablabla.feathershield.ui.provisioning.ProvisioningViewModel
-import com.lablabla.feathershield.ui.provisioning.WifiCredentialsScreen
 
 @Composable
 fun AppNavGraph(navController: NavHostController) {
@@ -27,20 +26,15 @@ fun AppNavGraph(navController: NavHostController) {
 
     NavHost(navController = navController, startDestination = startDestination) {
         composable("login") {
-            LoginScreen(navController = navController)
+            LoginRoute(navController = navController)
         }
         composable("dashboard") {
             val viewModel = hiltViewModel<DashboardViewModel>()
-            DashboardScreen(navController = navController, viewModel = viewModel)
+            DashboardRoute(navController = navController, viewModel = viewModel)
         }
         composable("add_device") {
             val viewModel = hiltViewModel<ProvisioningViewModel>()
-            ProvisioningScreen(navController = navController, viewModel = viewModel)
-        }
-        composable("wifi_credentials/{deviceId}") { backStackEntry ->
-            backStackEntry.arguments?.getString("deviceId")?.let { deviceId ->
-                WifiCredentialsScreen(navController = navController, deviceId = deviceId)
-            }
+            ProvisioningRoute(navController = navController, viewModel = viewModel)
         }
         composable(
             route = "livefeed/{deviceId}",
@@ -48,7 +42,7 @@ fun AppNavGraph(navController: NavHostController) {
         ) { backStackEntry ->
             backStackEntry.arguments?.getString("deviceId")?.let { deviceId ->
                 val viewModel = hiltViewModel<DeviceViewModel>()
-                DeviceScreen(navController = navController, viewModel = viewModel)
+                DeviceRoute(navController = navController, viewModel = viewModel)
             }
         }
         // Other screens will be added here
