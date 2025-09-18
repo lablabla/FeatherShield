@@ -1,0 +1,13 @@
+repos:
+  # Yelp's detect-secrets
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0   # check for the latest stable tag
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+
+  # Gitleaks (catch lots of common secret patterns)
+  - repo: https://github.com/zricethezav/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
