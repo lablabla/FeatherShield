@@ -10,11 +10,18 @@
 #include "nvs.h"
 #include "utils.h"
 
+
+#include "esp_camera.h"
+#include "mbedtls/base64.h"
+
 static const char *TAG = "MQTT";
 
 static char* private_key = NULL;
 static char* certificate = NULL;
 static char* ca_cert = NULL;
+static char* device_id = NULL;
+
+static esp_mqtt_client_handle_t client = NULL;
 
 static void log_error_if_nonzero(const char *message, int error_code)
 {
@@ -26,20 +33,15 @@ static void log_error_if_nonzero(const char *message, int error_code)
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
 {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%" PRIi32, base, event_id);
+    char topic[64];
+    snprintf(topic, sizeof(topic), "/nestbox/%s/command", device_id);
     esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
-    esp_mqtt_client_handle_t client = event->client;
     int msg_id;
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-        msg_id = esp_mqtt_client_subscribe(client, "/topic/qos0", 0);
+        msg_id = esp_mqtt_client_subscribe(client, topic, 1);
         ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
-
-        msg_id = esp_mqtt_client_subscribe(client, "/topic/qos1", 1);
-        ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
-
-        msg_id = esp_mqtt_client_unsubscribe(client, "/topic/qos1");
-        ESP_LOGI(TAG, "sent unsubscribe successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
@@ -47,8 +49,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
     case MQTT_EVENT_SUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-        msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
-        ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
         break;
     case MQTT_EVENT_UNSUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
@@ -78,8 +78,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 }
 
 
-void mqtt_start(void)
+void mqtt_start(char* device_id)
 {
+    ::device_id = device_id;
     ESP_LOGI(TAG, "Starting MQTT client...");
     if (strlen(CONFIG_FEATHERSHIELD_BROKER_URL) == 0) {
         ESP_LOGE(TAG, "MQTT broker URL not set. Please set it in menuconfig.");
@@ -100,7 +101,7 @@ void mqtt_start(void)
     mqtt_cfg.credentials.authentication.certificate = (const char *)certificate;
     mqtt_cfg.credentials.authentication.key = (const char *)private_key;
 
-    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+    client = esp_mqtt_client_init(&mqtt_cfg);
     
     esp_mqtt_client_register_event(client, MQTT_EVENT_ANY, mqtt_event_handler, NULL);
     esp_mqtt_client_start(client);
@@ -109,8 +110,21 @@ void mqtt_start(void)
 void mqtt_stop(void)
 {
     ESP_LOGI(TAG, "Stopping MQTT client...");
-
+    esp_mqtt_client_destroy(client);
     free(private_key);
     free(certificate);
     free(ca_cert);
+}
+
+void mqtt_publish_detection()
+{
+    if (!client) {
+        ESP_LOGW(TAG, "MQTT client not started");
+        return;
+    }
+    char topic[64];
+    snprintf(topic, sizeof(topic), "/nestbox/%s/alert", device_id);
+    const char* payload = "{\"event\": \"movement_detected\"}";
+    int msg_id = esp_mqtt_client_publish(client, topic, payload, 0, 1, 0);
+    ESP_LOGI(TAG, "Published movement detection, msg_id=%d", msg_id);
 }

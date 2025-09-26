@@ -18,13 +18,9 @@
 
 static const char *TAG = "provisioning";
 
-
 /* Signal Wi-Fi events on this event-group */
 const int WIFI_CONNECTED_EVENT = BIT0;
 static EventGroupHandle_t wifi_event_group;
-
-#define PROV_QR_VERSION         "v1"
-#define QRCODE_BASE_URL         "https://espressif.github.io/esp-jumpstart/qrcode.html"
 
 /* Event handler for catching system events */
 static void event_handler(void* arg, esp_event_base_t event_base,
@@ -108,19 +104,21 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     }
 }
 
+#ifndef CONFIG_FEATHERSHIELD_DEBUG_MODE
 static void wifi_init_sta(void)
 {
     /* Start Wi-Fi in station mode */
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
 }
+#endif
 
 const wifi_prov_event_handler_t wifi_prov_event_handler = {
     .event_cb = NULL,
     .user_data = NULL,
 };
 
-void provision()
+void provision(const char* device_id)
 {
     printf("Starting provisioning\n");
     
@@ -139,6 +137,19 @@ void provision()
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+#ifdef CONFIG_FEATHERSHIELD_DEBUG_MODE
+    ESP_LOGI(TAG, "Connecting to Wi-Fi with debug credentials to SSID %s...", CONFIG_FEATHERSHIELD_WIFI_SSID);
+
+    // Set the configuration before connecting
+    wifi_config_t wifi_config = {};
+    strncpy((char *)wifi_config.sta.ssid, CONFIG_FEATHERSHIELD_WIFI_SSID, strlen(CONFIG_FEATHERSHIELD_WIFI_SSID));
+    strncpy((char *)wifi_config.sta.password, CONFIG_FEATHERSHIELD_WIFI_PASSWORD, strlen(CONFIG_FEATHERSHIELD_WIFI_PASSWORD));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    ESP_LOGI(TAG, "Connecting to Wi-Fi network: %s", wifi_config.sta.ssid);
+    ESP_ERROR_CHECK(esp_wifi_start());
+#else
     wifi_prov_mgr_config_t config = {
         .scheme = wifi_prov_scheme_ble,
         .scheme_event_handler = WIFI_PROV_SCHEME_BLE_EVENT_HANDLER_FREE_BTDM,
@@ -162,10 +173,6 @@ void provision()
 
         wifi_prov_security_t security = WIFI_PROV_SECURITY_1;
         
-        nvs_handle nvs_handle;
-        ESP_ERROR_CHECK(nvs_open("info", NVS_READONLY, &nvs_handle) != ESP_OK);
-        const char *device_id = nvs_load_value_if_exist(nvs_handle, "device_id");
-        ESP_LOGI(TAG, "Device ID: %s", device_id);
         nvs_close(nvs_handle);
         /* This is the structure for passing security parameters
          * for the protocomm security 1.
@@ -198,6 +205,7 @@ void provision()
         
     }
     
+#endif
     /* Wait for Wi-Fi connection */
     xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_EVENT, true, true, portMAX_DELAY);
 }

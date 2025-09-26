@@ -1,7 +1,33 @@
 menu "FeatherShield Configuration"
+config FEATHERSHIELD_DEBUG_MODE
+    bool "Enable Debug Mode"
+    default n
+    help
+        Enable debug mode with hardcoded WiFi credentials.
+
+config FEATHERSHIELD_WIFI_SSID
+    string "WiFi SSID for Debug Mode"
+    depends on FEATHERSHIELD_DEBUG_MODE
+    default "FeatherShield_Debug"
+    help
+        SSID of the WiFi network to connect to in debug mode.
+
+config FEATHERSHIELD_WIFI_PASSWORD
+    string "WiFi Password for Debug Mode"
+    depends on FEATHERSHIELD_DEBUG_MODE
+    default "feathershield"
+    help
+        Password of the WiFi network to connect to in debug mode.
+
 config FEATHERSHIELD_BROKER_URL
     string "Broker URL"
     default ""
     help
         URL of the MQTT broker.
+        
+config CAMERA_MODEL
+    string "Camera Model"
+    default ""
+    help
+        Camera model to use.
 endmenu
