@@ -123,7 +123,10 @@ fun ProvisioningRoute(
         state = uiState.copy(cameraPermissionStatus = cameraPermissionState.status),
         onAction = { action ->
             when (action) {
-                is ProvisioningAction.OnBackClick -> navController.popBackStack()
+                is ProvisioningAction.OnBackClick -> {
+                    viewModel.handleAction(action)
+                    navController.popBackStack()
+                }
                 is ProvisioningAction.OnDoneClick -> navController.popBackStack()
                 is ProvisioningAction.OnRequestPermissionClick -> cameraPermissionState.launchPermissionRequest()
                 is ProvisioningAction.OnGoToSettingsClick -> {
@@ -326,7 +329,6 @@ fun ProvisioningProgressStep(steps: List<ProvisioningStep>) {
         verticalArrangement = Arrangement.Center
     ) {
         Column(
-            modifier = Modifier.shimmerEffect(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Image(
@@ -335,6 +337,7 @@ fun ProvisioningProgressStep(steps: List<ProvisioningStep>) {
                 modifier = Modifier
                     .size(130.dp)
                     .clip(RoundedCornerShape(20.dp))
+                    .shimmerEffect(),
             )
             Spacer(modifier = Modifier.height(32.dp))
             Text("Provisioning Your Device...", style = MaterialTheme.typography.titleLarge)
@@ -420,7 +423,7 @@ fun Modifier.shimmerEffect(): Modifier = composed {
         initialValue = -2 * size.width.toFloat(),
         targetValue = 2 * size.width.toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(1000)
+            animation = tween(3000)
         ), label = "shimmer offset"
     )
 

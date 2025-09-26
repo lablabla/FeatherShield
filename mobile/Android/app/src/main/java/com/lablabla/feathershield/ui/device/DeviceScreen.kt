@@ -6,15 +6,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.SignalWifi4Bar
-import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -22,20 +19,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.lablabla.feathershield.ui.theme.FeatherShieldTheme
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 
 // --- STATE AND ACTIONS DEFINITIONS ---
 
 data class DeviceUiState(
-    val deviceId: String? = null,
+    val name: String? = null,
     val batteryLevel: Int? = null,
     val lastImageUrl: String? = null,
     val isUpdateAvailable: Boolean = false,
@@ -82,7 +76,7 @@ fun DeviceScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.deviceId ?: "Loading...") },
+                title = { Text(state.name ?: "Loading...") },
                 navigationIcon = {
                     IconButton(onClick = { onAction(DeviceAction.OnBackClick) }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -182,7 +176,7 @@ fun DeviceScreenPreview_Light() {
             DeviceScreen(
                 state = DeviceUiState(
                     isLoading = false,
-                    deviceId = "N3ST-001",
+                    name = "N3ST-001",
                     batteryLevel = 88,
                     lastImageUrl = "https://placehold.co/600x400/EEE/31343C?text=Last+Capture",
                     isUpdateAvailable = false
@@ -201,7 +195,7 @@ fun DeviceScreenPreview_Dark_Streaming() {
             DeviceScreen(
                 state = DeviceUiState(
                     isLoading = false,
-                    deviceId = "N3ST-002",
+                    name = "N3ST-002",
                     batteryLevel = 45,
                 ),
                 onAction = {}
@@ -218,7 +212,7 @@ fun DeviceScreenPreview_Dark_Update() {
             DeviceScreen(
                 state = DeviceUiState(
                     isLoading = false,
-                    deviceId = "N3ST-002",
+                    name = "N3ST-002",
                     batteryLevel = 45,
                     isUpdateAvailable = true
                 ),

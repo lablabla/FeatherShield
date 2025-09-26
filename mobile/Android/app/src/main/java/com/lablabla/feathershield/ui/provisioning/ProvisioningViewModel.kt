@@ -69,6 +69,9 @@ class ProvisioningViewModel @Inject constructor(
                 // Reset the UI flow to the beginning
                 _uiState.update { it.copy(flowState = ProvisioningFlowState.CameraPermission) }
             }
+            is ProvisioningAction.OnBackClick -> {
+                espProvisioningRepository.stopBleScan()
+            }
             // Other actions are handled by the Route or don't require VM logic here.
             else -> { }
         }

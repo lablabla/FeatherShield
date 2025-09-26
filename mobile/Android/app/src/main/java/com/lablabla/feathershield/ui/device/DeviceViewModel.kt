@@ -22,7 +22,7 @@ class DeviceViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val deviceId: String = checkNotNull(savedStateHandle["deviceId"])
-    private val _uiState = MutableStateFlow(DeviceUiState(isLoading = true, deviceId = deviceId))
+    private val _uiState = MutableStateFlow(DeviceUiState(isLoading = true, name = deviceId))
     val uiState: StateFlow<DeviceUiState> = _uiState.asStateFlow()
 
     init {

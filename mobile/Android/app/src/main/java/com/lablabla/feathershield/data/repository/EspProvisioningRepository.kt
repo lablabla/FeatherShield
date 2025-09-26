@@ -44,6 +44,11 @@ class EspProvisioningRepository @Inject constructor(application: Application) {
         espProvisionManager.searchBleEspDevices(deviceName, bleScanListener(pop))
     }
 
+    fun stopBleScan() {
+        espProvisionManager.stopBleScan()
+        _provisioningState.value = ProvisioningState.Error
+    }
+
     val CAPABILITY_WIFI_SCAN: String = "wifi_scan"
     val CAPABILITY_THREAD_SCAN: String = "thread_scan"
     val CAPABILITY_THREAD_PROV: String = "thread_prov"

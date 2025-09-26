@@ -29,20 +29,18 @@ fun AppNavGraph(navController: NavHostController) {
             LoginRoute(navController = navController)
         }
         composable("dashboard") {
-            val viewModel = hiltViewModel<DashboardViewModel>()
-            DashboardRoute(navController = navController, viewModel = viewModel)
+            DashboardRoute(navController = navController)
         }
         composable("add_device") {
-            val viewModel = hiltViewModel<ProvisioningViewModel>()
-            ProvisioningRoute(navController = navController, viewModel = viewModel)
+            ProvisioningRoute(navController = navController)
         }
         composable(
-            route = "livefeed/{deviceId}",
+            route = "device/{deviceId}",
             arguments = listOf(navArgument("deviceId") { type = NavType.StringType })
         ) { backStackEntry ->
             backStackEntry.arguments?.getString("deviceId")?.let { deviceId ->
                 val viewModel = hiltViewModel<DeviceViewModel>()
-                DeviceRoute(navController = navController, viewModel = viewModel)
+                DeviceRoute(navController = navController)
             }
         }
         // Other screens will be added here

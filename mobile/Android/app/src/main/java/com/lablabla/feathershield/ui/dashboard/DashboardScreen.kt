@@ -40,6 +40,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
 import com.lablabla.feathershield.data.model.Device
+import com.lablabla.feathershield.ui.dashboard.components.DeviceCard
 import com.lablabla.feathershield.ui.dashboard.components.DeviceListItem
 import com.lablabla.feathershield.ui.theme.FeatherShieldTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -76,7 +77,7 @@ fun DashboardRoute(
         onAction = { action ->
             when (action) {
                 is DashboardAction.OnAddDeviceClick -> navController.navigate("add_device")
-                is DashboardAction.OnDeviceClick -> navController.navigate("livefeed/${action.deviceId}")
+                is DashboardAction.OnDeviceClick -> navController.navigate("device/${action.deviceId}")
                 is DashboardAction.OnSignOutClick -> {
                     viewModel.signOut() // Perform the sign-out logic
                     navController.navigate("login") {
@@ -125,25 +126,24 @@ fun DashboardScreen(
             )
         }
     ) { paddingValues ->
-        if (state.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else if (state.devices.isEmpty()) {
-            EmptyState(onAction)
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(state.devices, key = { it.id }) { device ->
-                    DeviceListItem(
-                        device = device,
-                        onClick = { onAction(DashboardAction.OnDeviceClick(device.id)) }
-                    )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            if (state.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else if (state.devices.isEmpty()) {
+                EmptyState(onAction)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(state.devices) { deviceState ->
+                        DeviceCard(device = deviceState, onAction = onAction)
+                    }
                 }
             }
         }
@@ -194,8 +194,8 @@ fun DashboardScreenPreview_Dark_Empty() {
 fun DashboardScreenPreview_Dark_Full() {
     FeatherShieldTheme {
         val devices = listOf(
-            Device(id = "1", batteryLevel = 80),
-            Device(id = "Nestbox 001", batteryLevel = 15)
+            Device(name = "Nestbox 001", batteryLevel = 80),
+            Device(name = "Nestbox 002", batteryLevel = 15)
         )
         Surface {
             DashboardScreen(state = DashboardUiState(devices = devices), onAction = {})
@@ -219,8 +219,8 @@ fun DashboardScreenPreview_Light_Full() {
     FeatherShieldTheme {
         Surface {
             val devices = listOf(
-                Device(id = "1", batteryLevel = 80),
-                Device(id = "Nestbox 001", batteryLevel = 15)
+                Device(name = "Nestbox 001", batteryLevel = 80),
+                Device(name = "Nestbox 002", batteryLevel = 15)
             )
             DashboardScreen(state = DashboardUiState(devices = devices), onAction = {})
         }
